@@ -5,4 +5,6 @@ module com.example.sortingalgorithmtesting {
 
     opens com.example.sortingalgorithmtesting to javafx.fxml;
     exports com.example.sortingalgorithmtesting;
+    exports com.example.sortingalgorithmtesting.Models;
+    opens com.example.sortingalgorithmtesting.Models to javafx.fxml;
 }

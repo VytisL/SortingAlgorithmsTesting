@@ -1,23 +1,25 @@
 package com.example.sortingalgorithmtesting;
 
+import com.example.sortingalgorithmtesting.Models.AlgorithmModel;
 import com.example.sortingalgorithmtesting.Utils.AlertMessage;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.stage.FileChooser;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.net.URL;
+import java.util.ResourceBundle;
 
-public class MainController {
-
-
+public class MainController implements Initializable {
 
     @FXML
-    private ComboBox<String> AlgorithmComboBox;
-
+    private ChoiceBox<String> AlgorithmChoiceBox;
 
     @FXML
     private TableView<String> DataTable;
@@ -27,23 +29,29 @@ public class MainController {
     private TableColumn<String, String> SortedDataColumn;
 
     @FXML
-    private TableView<String> AlgorithmTable;
+    private TableView<AlgorithmModel> AlgorithmTable;
     @FXML
-    private TableColumn<String, String> AlgorithmColumn;
+    private TableColumn<AlgorithmModel, String> AlgorithmColumn;
     @FXML
-    private TableColumn<String, Double> TimeColumn;
+    private TableColumn<AlgorithmModel, Double> TimeColumn;
     @FXML
-    private TableColumn<String, Double> MemoryColumn;
+    private TableColumn<AlgorithmModel, Double> MemoryColumn;
 
 
 
-
+    private final String[] algorithmList = {"Bubble sort", "Merge sort", "Quick sort", "Insertion sort"};
     private final ObservableList<String> dataList = FXCollections.observableArrayList();
-    @FXML
-    private void initialize() {
-        UnsortedDataColumn.setCellValueFactory();
+    private final ObservableList<AlgorithmModel> modelList = FXCollections.observableArrayList();
 
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        AlgorithmChoiceBox.getItems().addAll(algorithmList);
+        DataTable.setItems(dataList);
+        AlgorithmTable.setItems(modelList);
     }
+
+
+
     @FXML
     protected void SelectFileHandler() {
         FileChooser fileChooser = new FileChooser();
@@ -52,11 +60,15 @@ public class MainController {
         File file = fileChooser.showOpenDialog(DataTable.getScene().getWindow());
 
         if(file!=null){
+            DataTable.setItems(dataList);
             dataList.clear();
+
+            //checks in case the file is empty
             if(file.length() == 0){
                 AlertMessage.showAlert(Alert.AlertType.WARNING, "Empty file", "WARNING", "Selected file is empty");
                 return;
             }
+
             try(BufferedReader reader = new BufferedReader(new FileReader(file))){
                 String line;
 
@@ -69,16 +81,61 @@ public class MainController {
                 throw new RuntimeException(e);
             }
         }
+        //stolen from ChatGPT once again
+        UnsortedDataColumn.setCellValueFactory(data -> {
+            return new SimpleStringProperty(data.getValue());
+        });
 
-        //Big string for UnsortedDataColumn to display, since it takes a String variable
-        String megaString = "";
-        for(int i = 0; i < dataList.size(); i++){
-            megaString = megaString + " " + dataList.get(i);
-        }
-        UnsortedDataColumn.setCellValueFactory(megaString);
+
     }
     @FXML
     protected void ProgramHandler(){
+        if(AlgorithmChoiceBox.getValue()!=null){
+            AlgorithmModel model = new AlgorithmModel(AlgorithmChoiceBox.getValue(), dataList);
 
+
+            long startTime = System.nanoTime();
+            long beforeMemory = getUsedMemory();
+            switch (AlgorithmChoiceBox.getValue()){
+                case "Bubble sort":
+                    model.BubbleSort();
+                    break;
+                case "Merge sort":
+                    model.MergeSort();
+                    break;
+                case "Quick sort":
+                    model.QuickSort();
+                    break;
+                case "Insertion sort":
+                    model.InsertionSort();
+                    break;
+            }
+            long endTime = System.nanoTime();
+
+            long afterMemory = getUsedMemory();
+            model.setAlgorithmTime((endTime-startTime)/1_000_000_000.0);
+            model.setAlgorithmMemory((beforeMemory - afterMemory) / (1024.0));
+
+            modelList.add(model);
+
+            DataTable.setItems(model.getList());
+            SortedDataColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
+            AlgorithmColumn.setCellValueFactory(data -> data.getValue().algorithmNameProperty());
+            TimeColumn.setCellValueFactory(data -> data.getValue().algorithmTimeProperty().asObject());
+            MemoryColumn.setCellValueFactory(data -> data.getValue().algorithmMemoryProperty().asObject());
+
+
+
+        } else {
+            AlertMessage.showAlert(Alert.AlertType.ERROR, "No algorithm chosen", "Error", "No algorithm chosen");
+            return;
+        }
+
+    }
+
+    private static long getUsedMemory() {
+        Runtime runtime = Runtime.getRuntime();
+        runtime.gc(); // Optional: Suggest garbage collection for more accurate reading
+        return runtime.totalMemory() - runtime.freeMemory();
     }
 }
